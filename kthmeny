@@ -1,0 +1,157 @@
+#!/bin/bash
+esc_seq="\x1b["
+col_reset=$esc_seq"39;49;00m"
+col_red=$esc_seq"31;01m"
+col_green=$esc_seq"32;01m"
+col_yellow=$esc_seq"33;01m"
+col_blue=$esc_seq"34;01m"
+col_magenta=$esc_seq"35;01m"
+col_cyan=$esc_seq"36;01m"
+nymble() {
+  case $1 in
+    idag)
+      date=$(date +%A)
+      ;;
+    imorgon)
+      date=$(date --date="-1 days ago" +%A)
+      ;;
+      # if user didn't specify a day, print all of the weeks meals
+    default)
+      nymble_entries=("måndag" "tisdag" "onsdag" "torsdag" "fredag" "veckans vegetariska" "veckans fisk" "veckans hälsotallrik")
+      ret=""
+      for i in "${nymble_entries[@]}"
+      do
+        ret=$(echo -e "$ret
+
+"$col_cyan"$i"$col_reset"
+$(nymble "$i" $2 "$3")
+")
+      done
+      # trim down leading newlines
+      ret=$(echo "$ret" | sed 1,2d)
+      echo "$ret"
+      exit 0
+      ;;
+    *)
+      date=$1
+      ;;
+  esac
+  fxml=$(echo "$3" | grep -i "$date")
+  ret=$(echo "$fxml" | sed -e 's/<\/*[BRP]*>/. /g' -e 's/^.*>//')
+  echo "$ret"
+}
+# TODO Currently only displays todays meal
+q() {
+  case $1 in
+    default)
+      ;;
+    *)
+      echo "option -d not supported for Q"
+      exit 1
+      ;;
+  esac
+  case $2 in
+    kött)
+      food_type=Kött
+      ;;
+    fisk)
+      food_type=Fisk
+      ;;
+    veg)
+      food_type=Vego
+      ;;
+    default)
+      echo -e ""$col_red"Kött:"$col_reset" $(q $1 kött "$3")
+"$col_blue"Fisk:"$col_reset" $(q $1 fisk "$3")
+"$col_green"Veg:"$col_reset" $(q $1 veg "$3")"
+      exit 0
+      ;;
+    *)
+      echo "argument $2 not supported"
+      ;;
+  esac
+  ret=$(echo "$3" | sed -n '1,1p' | sed -e 's/&[a-z]*;//g' -e 's/^.*'$food_type'\/strong\ //' -e 's/\/.*$//')
+  echo "$ret"
+}
+day="default"
+food_type="default"
+restaurant="default"
+# set variables depending on parameters
+while getopts ":d:t:r:h" opt; do
+  case $opt in
+    d)
+      case $OPTARG in
+        måndag) ;&
+        tisdag) ;&
+        onsdag) ;&
+        torsdag) ;&
+        fredag) ;&
+        lördag) ;&
+        söndag) ;&
+        idag) ;&
+        imorgon)
+          ;;
+        *)
+          echo "Invalid day."
+          exit 1
+          ;;
+      esac
+      day=$OPTARG
+      ;;
+    t)
+      case $OPTARG in
+        kött) ;&
+        fisk) ;&
+        veg) 
+          food_type=$OPTARG
+          ;;
+        *)
+          echo "Invalid argument: $OPTARG"
+          exit 1
+          ;;
+      esac
+      ;;
+    r)
+      restaurant=$OPTARG
+      ;;
+    h)
+      echo "Användning: kthmeny [FLAGGA]...
+Skriver ut menyn för restauranger runt KTH Campus på standard out
+  -r                      specificerar restaurang (q eller nymble)
+  -t                      visar en typ av mat (kött, fisk, veg)
+  -d                      välj dag(idag, imorgon, måndag..söndag)
+  -h                      visar detta meddelande"
+      exit 0
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option: -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+# echo $day $disp_mode $restaurant
+# get menu from restaurant
+case $restaurant in
+  nymble)
+    xml=$(curl -s http://nymble.kvartersmenyn.se)
+    ret=$(nymble $day $food_type "$xml")
+    ;;
+  q)
+    xml=$(curl -s http://www.hors.se/dagens-lunch/feed | xmllint --format - | grep summary)
+    ret=$(q $day $food_type "$xml")
+    ;;
+  default)
+    echo "Restaurant not specified."
+    exit 1
+    ;;
+  *)
+    echo "Invalid restaurant."
+    exit 1
+    ;;
+esac
+echo "$ret"
+exit 0
