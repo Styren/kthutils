@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/bash
 esc_seq="\x1b["
 col_reset=$esc_seq"39;49;00m"
 col_red=$esc_seq"31;01m"
@@ -9,10 +9,10 @@ col_magenta=$esc_seq"35;01m"
 col_cyan=$esc_seq"36;01m"
 nymble() {
   case $1 in
-    idag)
+    idag | today)
       date=$(date +%A)
       ;;
-    imorgon)
+    imorgon | tommorrow)
       date=$(date --date="-1 days ago" +%A)
       ;;
       # if user didn't specify a day, print all of the weeks meals
@@ -81,16 +81,15 @@ while getopts ":d:t:r:h" opt; do
   case $opt in
     d)
       case $OPTARG in
-        måndag) ;&
-        tisdag) ;&
-        onsdag) ;&
-        torsdag) ;&
-        fredag) ;&
-        lördag) ;&
-        söndag) ;&
-        idag) ;&
-        imorgon)
-          ;;
+        måndag | monday) day=måndag ;;
+        tisdag | tuesday) day=tisdag ;;
+        onsdag | wednesday) day=onsdag ;;
+        torsdag | thursday) day=torsdag ;;
+        fredag | friday) day=fredag ;;
+        lördag | saturday) day=lördag ;;
+        söndag | sunday) day=söndag ;; 
+        idag | today) day=idag ;;
+        imorgon | tommorrow) day=imorgon ;;
         *)
           echo "Invalid day."
           exit 1
@@ -100,11 +99,9 @@ while getopts ":d:t:r:h" opt; do
       ;;
     t)
       case $OPTARG in
-        kött) ;&
-        fisk) ;&
-        veg) 
-          food_type=$OPTARG
-          ;;
+        kött | meat) food_type=kött ;;
+        fisk | meat) food_type=fisk ;;
+        veg) food_type=veg ;;
         *)
           echo "Invalid argument: $OPTARG"
           exit 1
@@ -115,7 +112,7 @@ while getopts ":d:t:r:h" opt; do
       restaurant=$OPTARG
       ;;
     h)
-      echo "Användning: kthmeny [FLAGGA]...
+      echo "Användning: kthmenu [FLAGGA]...
 Skriver ut menyn för restauranger runt KTH Campus på standard out
   -r                      specificerar restaurang (q eller nymble)
   -t                      visar en typ av mat (kött, fisk, veg)
